@@ -1,0 +1,57 @@
+{
+  "name": "06 - Weekly Lead Digest",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": { "interval": [{ "field": "weeks", "weeksInterval": 1, "triggerAtDay": [1], "triggerAtHour": 8 }] }
+      },
+      "id": "schedule",
+      "name": "Every Monday 8am",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1,
+      "position": [240, 300]
+    },
+    {
+      "parameters": {
+        "url": "={{ $env.API_BASE }}/api/admin/tenants/{{ $env.TENANT_ID }}/leads?since=7d",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {}
+      },
+      "id": "fetch-leads",
+      "name": "Fetch Week's Leads",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const leads = $input.first().json.leads || [];\nconst hot = leads.filter(l => l.leadTier === 'hot');\nconst warm = leads.filter(l => l.leadTier === 'warm');\nconst totalValue = leads.reduce((s, l) => s + (l.roiAnnualValue || 0), 0);\nconst avgScore = leads.length ? Math.round(leads.reduce((s, l) => s + (l.leadScore || 0), 0) / leads.length) : 0;\n\nreturn [{ json: { leads, hot, warm, totalValue, avgScore, count: leads.length } }];"
+      },
+      "id": "summarize",
+      "name": "Summarize Leads",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [680, 300]
+    },
+    {
+      "parameters": {
+        "to": "={{ $env.SALES_EMAIL }}",
+        "subject": "📊 Weekly Lead Digest — {{ $json.count }} new leads, ${{ Math.round($json.totalValue / 1000) }}k pipeline",
+        "html": "<h2>Weekly Blueprint ROI Digest</h2><p><strong>{{ $json.count }}</strong> new leads this week</p><ul><li>🔥 Hot: {{ $json.hot.length }}</li><li>☀️ Warm: {{ $json.warm.length }}</li><li>💰 Total Pipeline: ${{ $json.totalValue.toLocaleString() }}/yr</li><li>🎯 Avg Score: {{ $json.avgScore }}/100</li></ul><h3>Hot Leads This Week</h3>{{ $json.hot.map(l => `<p><strong>${l.contactName}</strong> (${l.contactEmail}) — $${(l.roiAnnualValue||0).toLocaleString()}/yr, score ${l.leadScore}</p>`).join('') || '<p>None</p>' }}<br><a href='{{ $env.ADMIN_BASE_URL }}/leads'>View All Leads →</a>"
+      },
+      "id": "email-digest",
+      "name": "Send Digest Email",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2,
+      "position": [900, 300]
+    }
+  ],
+  "connections": {
+    "Every Monday 8am": { "main": [[{ "node": "Fetch Week's Leads", "type": "main", "index": 0 }]] },
+    "Fetch Week's Leads": { "main": [[{ "node": "Summarize Leads", "type": "main", "index": 0 }]] },
+    "Summarize Leads": { "main": [[{ "node": "Send Digest Email", "type": "main", "index": 0 }]] }
+  },
+  "active": false,
+  "settings": { "executionOrder": "v1" }
+}

@@ -1,0 +1,63 @@
+{
+  "name": "03 - Follow-up Email Sequence",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "blueprint-email-sequence",
+        "responseMode": "onReceived"
+      },
+      "id": "webhook-trigger",
+      "name": "Webhook - Start Sequence",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [240, 300]
+    },
+    {
+      "parameters": {
+        "to": "={{ $json.contactEmail }}",
+        "subject": "Your Automation Audit Results — {{ $json.businessName }}",
+        "html": "<h2>Hi {{ $json.contactName.split(' ')[0] }},</h2><p>Your free automation audit is ready! Based on your answers, we identified <strong>${{ $json.roiCalculation?.annualValue?.toLocaleString() || '0' }}/year</strong> in automation potential.</p><p>Here are your top findings:</p><ul>{{ $json.audit?.findings?.slice(0,3).map(f => `<li><strong>${f.title}</strong> — ${f.description}</li>`).join('') }}</ul><p><a href='{{ $env.ADMIN_BASE_URL }}/audit/{{ $json.auditId }}'>View Your Full Report →</a></p><p>Want to talk through how to implement this? <a href='{{ $json.config?.ctaUrl || $env.BOOKING_URL }}'>Book a free 30-minute strategy call.</a></p><br><p>Best,<br>{{ $json.config?.companyName || 'Blueprint Automation' }}</p>"
+      },
+      "id": "email-day0",
+      "name": "Email D0 — Audit Results",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2,
+      "position": [460, 200]
+    },
+    {
+      "parameters": {
+        "amount": 2,
+        "unit": "days"
+      },
+      "id": "wait-2d",
+      "name": "Wait 2 Days",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1,
+      "position": [460, 360]
+    },
+    {
+      "parameters": {
+        "to": "={{ $('Webhook - Start Sequence').item.json.contactEmail }}",
+        "subject": "Quick question about your automation audit",
+        "html": "<p>Hi {{ $('Webhook - Start Sequence').item.json.contactName.split(' ')[0] }},</p><p>Did you get a chance to review your audit report? I wanted to share one quick win that stands out for your business...</p><p>Based on your data, automating <strong>email follow-up alone</strong> could save your team {{ $('Webhook - Start Sequence').item.json.roiCalculation?.hoursPerWeek || 0 }} hours a week.</p><p>Happy to show you exactly how in a quick call: <a href='{{ $env.BOOKING_URL }}'>Pick a time here →</a></p>"
+      },
+      "id": "email-day2",
+      "name": "Email D2 — Quick Win",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2,
+      "position": [680, 360]
+    }
+  ],
+  "connections": {
+    "Webhook - Start Sequence": {
+      "main": [[
+        { "node": "Email D0 — Audit Results", "type": "main", "index": 0 },
+        { "node": "Wait 2 Days", "type": "main", "index": 0 }
+      ]]
+    },
+    "Wait 2 Days": { "main": [[{ "node": "Email D2 — Quick Win", "type": "main", "index": 0 }]] }
+  },
+  "active": false,
+  "settings": { "executionOrder": "v1" }
+}

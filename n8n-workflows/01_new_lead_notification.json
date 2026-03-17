@@ -1,0 +1,75 @@
+{
+  "name": "01 - New Lead Notification",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "blueprint-lead",
+        "responseMode": "onReceived",
+        "responseData": "allEntries"
+      },
+      "id": "webhook-trigger",
+      "name": "Webhook - New Lead",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [240, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const lead = $input.first().json;\nconst roi = lead.roiCalculation || {};\nconst tier = lead.leadTier || 'unknown';\nconst tierEmoji = { hot: '🔥', warm: '☀️', cold: '🧊' }[tier] || '📊';\n\nreturn [{\n  json: {\n    ...lead,\n    tierEmoji,\n    formattedROI: `$${Math.round(roi.annualValue || 0).toLocaleString()}`,\n    formattedHours: `${Math.round(roi.hoursPerWeek || 0)} hrs/wk`,\n  }\n}];"
+      },
+      "id": "enrich-lead",
+      "name": "Enrich Lead Data",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "webhookUri": "={{ $env.DISCORD_WEBHOOK_URL }}",
+        "text": "={{ $json.tierEmoji }} **New {{ $json.leadTier | upper }} Lead** — {{ $json.contactName }}\n\n📧 {{ $json.contactEmail }}\n🏢 {{ $json.businessName || 'Unknown' }}\n💰 **{{ $json.formattedROI }}/yr** automation potential\n⏱ {{ $json.formattedHours }} recoverable\n🎯 Lead Score: **{{ $json.leadScore }}**\n\n[View in Admin]({{ $env.ADMIN_BASE_URL }}/leads/{{ $json.leadId }})"
+      },
+      "id": "discord-notify",
+      "name": "Discord Notification",
+      "type": "n8n-nodes-base.discord",
+      "typeVersion": 1,
+      "position": [680, 200]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [{ "value1": "={{ $json.leadTier }}", "operation": "equals", "value2": "hot" }]
+        }
+      },
+      "id": "if-hot",
+      "name": "Is Hot Lead?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [680, 400]
+    },
+    {
+      "parameters": {
+        "to": "={{ $env.SALES_EMAIL }}",
+        "subject": "🔥 Hot Lead Alert: {{ $json.contactName }} — {{ $json.formattedROI }}/yr",
+        "text": "A hot lead just completed the Blueprint ROI audit.\n\nContact: {{ $json.contactName }} ({{ $json.contactEmail }})\nBusiness: {{ $json.businessName }}\nAnnual ROI Potential: {{ $json.formattedROI }}\nLead Score: {{ $json.leadScore }}/100\n\nView full audit: {{ $env.ADMIN_BASE_URL }}/leads/{{ $json.leadId }}"
+      },
+      "id": "email-hot-lead",
+      "name": "Email Sales Team",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2,
+      "position": [900, 340]
+    }
+  ],
+  "connections": {
+    "Webhook - New Lead": { "main": [[{ "node": "Enrich Lead Data", "type": "main", "index": 0 }]] },
+    "Enrich Lead Data": {
+      "main": [[
+        { "node": "Discord Notification", "type": "main", "index": 0 },
+        { "node": "Is Hot Lead?", "type": "main", "index": 0 }
+      ]]
+    },
+    "Is Hot Lead?": { "main": [[{ "node": "Email Sales Team", "type": "main", "index": 0 }]] }
+  },
+  "active": false,
+  "settings": { "executionOrder": "v1" }
+}

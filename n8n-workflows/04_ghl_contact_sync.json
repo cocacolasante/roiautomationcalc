@@ -1,0 +1,68 @@
+{
+  "name": "04 - GoHighLevel Contact Sync",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "blueprint-ghl-sync",
+        "responseMode": "onReceived"
+      },
+      "id": "webhook-trigger",
+      "name": "Webhook - Lead Submitted",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [240, 300]
+    },
+    {
+      "parameters": {
+        "url": "https://rest.gohighlevel.com/v1/contacts/",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            { "name": "firstName", "value": "={{ $json.contactName.split(' ')[0] }}" },
+            { "name": "lastName", "value": "={{ $json.contactName.split(' ').slice(1).join(' ') }}" },
+            { "name": "email", "value": "={{ $json.contactEmail }}" },
+            { "name": "phone", "value": "={{ $json.contactPhone || '' }}" },
+            { "name": "companyName", "value": "={{ $json.businessName || '' }}" },
+            { "name": "source", "value": "Blueprint ROI Audit" },
+            { "name": "customField", "value": "={{ JSON.stringify({ roiAnnualValue: $json.roiCalculation?.annualValue, leadScore: $json.leadScore, leadTier: $json.leadTier }) }}" }
+          ]
+        }
+      },
+      "id": "ghl-contact",
+      "name": "Create GHL Contact",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "url": "https://rest.gohighlevel.com/v1/opportunities/",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            { "name": "title", "value": "={{ $('Webhook - Lead Submitted').item.json.businessName }} — ROI Audit" },
+            { "name": "status", "value": "open" },
+            { "name": "monetaryValue", "value": "={{ $('Webhook - Lead Submitted').item.json.roiCalculation?.annualValue || 0 }}" },
+            { "name": "contactId", "value": "={{ $json.contact?.id || '' }}" }
+          ]
+        }
+      },
+      "id": "ghl-opportunity",
+      "name": "Create GHL Opportunity",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [680, 300]
+    }
+  ],
+  "connections": {
+    "Webhook - Lead Submitted": { "main": [[{ "node": "Create GHL Contact", "type": "main", "index": 0 }]] },
+    "Create GHL Contact": { "main": [[{ "node": "Create GHL Opportunity", "type": "main", "index": 0 }]] }
+  },
+  "active": false,
+  "settings": { "executionOrder": "v1" }
+}

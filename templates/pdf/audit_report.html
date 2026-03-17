@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Automation Audit Report — {{.BusinessName}}</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; color: #1a1a1a; line-height: 1.5; }
+    .page { max-width: 800px; margin: 0 auto; padding: 48px 48px; }
+    .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 40px; padding-bottom: 24px; border-bottom: 2px solid #e5e7eb; }
+    .logo { height: 40px; }
+    .header-right { text-align: right; font-size: 0.875rem; color: #888; }
+    .hero { background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%); color: white; border-radius: 16px; padding: 36px; margin-bottom: 36px; text-align: center; }
+    .hero-label { font-size: 0.875rem; opacity: 0.8; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 8px; }
+    .hero-value { font-size: 3rem; font-weight: 800; margin-bottom: 8px; }
+    .hero-sub { opacity: 0.85; }
+    .stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 36px; }
+    .stat { background: #f8fafc; border-radius: 10px; padding: 16px; text-align: center; }
+    .stat-value { font-size: 1.5rem; font-weight: 700; color: #2563eb; }
+    .stat-label { font-size: 0.8125rem; color: #888; margin-top: 4px; }
+    h2 { font-size: 1.25rem; font-weight: 700; margin-bottom: 16px; color: #1a1a1a; }
+    .summary { background: #f8fafc; border-radius: 10px; padding: 20px; margin-bottom: 36px; font-size: 0.9375rem; color: #444; line-height: 1.7; }
+    .findings { margin-bottom: 36px; }
+    .finding { border: 1px solid #e5e7eb; border-radius: 10px; padding: 16px; margin-bottom: 12px; }
+    .finding-header { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
+    .finding-title { font-weight: 600; }
+    .badge { font-size: 0.75rem; padding: 2px 8px; border-radius: 999px; }
+    .badge-high { background: #fef2f2; color: #dc2626; }
+    .badge-medium { background: #fffbeb; color: #d97706; }
+    .badge-low { background: #f9fafb; color: #6b7280; }
+    .finding-desc { font-size: 0.9rem; color: #555; }
+    .recommendations { margin-bottom: 36px; }
+    .rec { border: 1px solid #e5e7eb; border-radius: 10px; padding: 16px; margin-bottom: 12px; display: flex; gap: 12px; }
+    .rec-icon { font-size: 1.5rem; flex-shrink: 0; }
+    .rec-title { font-weight: 600; margin-bottom: 4px; }
+    .rec-desc { font-size: 0.9rem; color: #555; }
+    .rec-roi { font-size: 0.875rem; font-weight: 600; color: #2563eb; margin-top: 4px; }
+    .cta { background: #f0f4ff; border-radius: 14px; padding: 28px; text-align: center; margin-bottom: 36px; }
+    .cta h3 { font-size: 1.125rem; font-weight: 700; margin-bottom: 8px; }
+    .cta p { color: #555; margin-bottom: 16px; }
+    .cta-url { display: inline-block; background: #2563eb; color: white; padding: 10px 24px; border-radius: 8px; text-decoration: none; font-weight: 600; }
+    .footer { font-size: 0.8rem; color: #bbb; text-align: center; border-top: 1px solid #f0f0f0; padding-top: 20px; }
+  </style>
+</head>
+<body>
+<div class="page">
+  <div class="header">
+    {{if .LogoUrl}}<img class="logo" src="{{.LogoUrl}}" alt="{{.CompanyName}}" />{{else}}<span style="font-weight:700;font-size:1.125rem;">{{.CompanyName}}</span>{{end}}
+    <div class="header-right">
+      <div>Automation Audit Report</div>
+      <div>{{.Date}}</div>
+    </div>
+  </div>
+
+  <div class="hero">
+    <div class="hero-label">Annual Automation Savings Potential</div>
+    <div class="hero-value">${{.FormattedAnnualValue}}</div>
+    <div class="hero-sub">{{.FormattedHoursPerWeek}} hrs/week · Lead Score {{.LeadScore}}/100</div>
+  </div>
+
+  <div class="stats">
+    <div class="stat">
+      <div class="stat-value">{{.FormattedHoursPerWeek}}</div>
+      <div class="stat-label">Hours/Week</div>
+    </div>
+    <div class="stat">
+      <div class="stat-value">{{.FormattedHoursPerYear}}</div>
+      <div class="stat-label">Hours/Year</div>
+    </div>
+    <div class="stat">
+      <div class="stat-value">{{.LeadScore}}</div>
+      <div class="stat-label">ROI Score</div>
+    </div>
+  </div>
+
+  {{if .ExecutiveSummary}}
+  <div class="summary">
+    <h2>Executive Summary</h2>
+    <p>{{.ExecutiveSummary}}</p>
+  </div>
+  {{end}}
+
+  {{if .Findings}}
+  <div class="findings">
+    <h2>Key Findings</h2>
+    {{range .Findings}}
+    <div class="finding">
+      <div class="finding-header">
+        <span>{{.Icon}}</span>
+        <span class="finding-title">{{.Title}}</span>
+        <span class="badge badge-{{.Priority}}">{{.Priority}}</span>
+      </div>
+      <div class="finding-desc">{{.Description}}</div>
+    </div>
+    {{end}}
+  </div>
+  {{end}}
+
+  {{if .Recommendations}}
+  <div class="recommendations">
+    <h2>Recommended Solutions</h2>
+    {{range .Recommendations}}
+    <div class="rec">
+      <span class="rec-icon">{{.Icon}}</span>
+      <div>
+        <div class="rec-title">{{.Title}}</div>
+        <div class="rec-desc">{{.Description}}</div>
+        {{if .EstimatedROI}}<div class="rec-roi">~${{.FormattedROI}}/yr estimated savings</div>{{end}}
+      </div>
+    </div>
+    {{end}}
+  </div>
+  {{end}}
+
+  <div class="cta">
+    <h3>Ready to Capture Your ${{.FormattedAnnualValue}} Opportunity?</h3>
+    <p>{{.CTADescription}}</p>
+    <a class="cta-url" href="{{.CTAURL}}">{{.CTAText}} →</a>
+  </div>
+
+  <div class="footer">
+    Generated by {{.CompanyName}} · Results are estimates based on your provided data and industry averages.
+  </div>
+</div>
+</body>
+</html>

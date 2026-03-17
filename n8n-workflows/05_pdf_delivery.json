@@ -1,0 +1,47 @@
+{
+  "name": "05 - PDF Report Delivery",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "blueprint-pdf-ready",
+        "responseMode": "onReceived"
+      },
+      "id": "webhook-trigger",
+      "name": "Webhook - PDF Ready",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [240, 300]
+    },
+    {
+      "parameters": {
+        "url": "={{ $env.API_BASE }}/api/v1/audit/{{ $json.auditId }}/pdf",
+        "responseFormat": "file"
+      },
+      "id": "fetch-pdf",
+      "name": "Fetch PDF from API",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "to": "={{ $('Webhook - PDF Ready').item.json.contactEmail }}",
+        "subject": "Your Automation Audit Report — {{ $('Webhook - PDF Ready').item.json.businessName }}",
+        "text": "Hi {{ $('Webhook - PDF Ready').item.json.contactName }},\n\nPlease find your personalized automation audit report attached.\n\nKey takeaway: You have ${{ $('Webhook - PDF Ready').item.json.roiAnnualValue?.toLocaleString() || '0' }}/year in automation potential.\n\nLet's talk about how to capture it: {{ $env.BOOKING_URL }}",
+        "attachments": "={{ $binary }}"
+      },
+      "id": "email-pdf",
+      "name": "Email PDF to Lead",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2,
+      "position": [680, 300]
+    }
+  ],
+  "connections": {
+    "Webhook - PDF Ready": { "main": [[{ "node": "Fetch PDF from API", "type": "main", "index": 0 }]] },
+    "Fetch PDF from API": { "main": [[{ "node": "Email PDF to Lead", "type": "main", "index": 0 }]] }
+  },
+  "active": false,
+  "settings": { "executionOrder": "v1" }
+}
