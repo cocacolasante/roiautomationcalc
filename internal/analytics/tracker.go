@@ -35,16 +35,28 @@ type Event struct {
 	CreatedAt time.Time              `json:"createdAt"`
 }
 
+type FunnelData struct {
+	Loads     int `json:"loads"`
+	Started   int `json:"started"`
+	Completed int `json:"completed"`
+}
+
+type TierBreakdown struct {
+	Hot  int `json:"hot"`
+	Warm int `json:"warm"`
+	Cold int `json:"cold"`
+}
+
 type FunnelStats struct {
-	ToolLoads        int     `json:"toolLoads"`
-	StepsStarted     int     `json:"stepsStarted"`
-	AuditsCompleted  int     `json:"auditsCompleted"`
-	ContactsProvided int     `json:"contactsProvided"`
-	PDFsDownloaded   int     `json:"pdfsDownloaded"`
-	CTAsClicked      int     `json:"ctasClicked"`
-	CompletionRate   float64 `json:"completionRate"`
-	LeadCaptureRate  float64 `json:"leadCaptureRate"`
-	AvgROICalculated float64 `json:"avgRoiCalculated"`
+	TotalLeads      int           `json:"totalLeads"`
+	AvgLeadScore    float64       `json:"avgLeadScore"`
+	AvgRoiValue     float64       `json:"avgRoiValue"`
+	Funnel          FunnelData    `json:"funnel"`
+	TierBreakdown   TierBreakdown `json:"tierBreakdown"`
+	PDFsDownloaded  int           `json:"pdfsDownloaded"`
+	CTAsClicked     int           `json:"ctasClicked"`
+	CompletionRate  float64       `json:"completionRate"`
+	LeadCaptureRate float64       `json:"leadCaptureRate"`
 }
 
 type Tracker struct {
@@ -79,6 +91,7 @@ func (t *Tracker) GetFunnelStats(ctx context.Context, tenantID uuid.UUID, days i
 	since := time.Now().AddDate(0, 0, -days)
 	stats := &FunnelStats{}
 
+	// Funnel events from analytics_events
 	rows, err := t.db.Query(ctx, `
 		SELECT event_type, COUNT(*) as count
 		FROM analytics_events
@@ -89,6 +102,7 @@ func (t *Tracker) GetFunnelStats(ctx context.Context, tenantID uuid.UUID, days i
 	}
 	defer rows.Close()
 
+	var auditsCompleted, contactsProvided int
 	for rows.Next() {
 		var eventType string
 		var count int
@@ -97,13 +111,14 @@ func (t *Tracker) GetFunnelStats(ctx context.Context, tenantID uuid.UUID, days i
 		}
 		switch EventType(eventType) {
 		case EventToolLoaded:
-			stats.ToolLoads = count
+			stats.Funnel.Loads = count
 		case EventStepViewed:
-			stats.StepsStarted = count
+			stats.Funnel.Started = count
 		case EventAuditGenerated:
-			stats.AuditsCompleted = count
+			auditsCompleted = count
+			stats.Funnel.Completed = count
 		case EventContactSubmitted:
-			stats.ContactsProvided = count
+			contactsProvided = count
 		case EventPDFDownloaded:
 			stats.PDFsDownloaded = count
 		case EventCTAClicked:
@@ -111,18 +126,34 @@ func (t *Tracker) GetFunnelStats(ctx context.Context, tenantID uuid.UUID, days i
 		}
 	}
 
-	if stats.ToolLoads > 0 {
-		stats.CompletionRate = float64(stats.AuditsCompleted) / float64(stats.ToolLoads)
+	if stats.Funnel.Loads > 0 {
+		stats.CompletionRate = float64(auditsCompleted) / float64(stats.Funnel.Loads)
 	}
-	if stats.AuditsCompleted > 0 {
-		stats.LeadCaptureRate = float64(stats.ContactsProvided) / float64(stats.AuditsCompleted)
+	if auditsCompleted > 0 {
+		stats.LeadCaptureRate = float64(contactsProvided) / float64(auditsCompleted)
 	}
 
+	// Lead counts, avg score, avg ROI, and tier breakdown from leads + audits tables
 	t.db.QueryRow(ctx, `
-		SELECT COALESCE(AVG(estimated_annual_value), 0)
-		FROM audits WHERE tenant_id = $1 AND created_at >= $2 AND status = 'complete'`,
+		SELECT
+			COUNT(*),
+			COALESCE(AVG(l.lead_score), 0),
+			COALESCE(AVG(l.estimated_roi), 0),
+			COUNT(*) FILTER (WHERE LOWER(a.lead_quality) = 'hot'),
+			COUNT(*) FILTER (WHERE LOWER(a.lead_quality) = 'warm'),
+			COUNT(*) FILTER (WHERE LOWER(a.lead_quality) = 'cold')
+		FROM leads l
+		JOIN audits a ON l.audit_id = a.id
+		WHERE l.tenant_id = $1 AND l.created_at >= $2`,
 		tenantID, since,
-	).Scan(&stats.AvgROICalculated)
+	).Scan(
+		&stats.TotalLeads,
+		&stats.AvgLeadScore,
+		&stats.AvgRoiValue,
+		&stats.TierBreakdown.Hot,
+		&stats.TierBreakdown.Warm,
+		&stats.TierBreakdown.Cold,
+	)
 
 	return stats, nil
 }

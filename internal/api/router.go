@@ -48,6 +48,9 @@ func NewRouter(cfg *RouterConfig) http.Handler {
 
 	r.Get("/api/health", handlers.Health)
 
+	embedFS := http.FileServer(http.Dir("./embed"))
+	r.Handle("/embed/*", http.StripPrefix("/embed", embedFS))
+
 	r.Route("/api/v1", func(r chi.Router) {
 		r.Use(middleware.RateLimit(60, time.Minute))
 		r.Get("/config/{tenantId}", configH.GetConfig)
@@ -71,6 +74,7 @@ func NewRouter(cfg *RouterConfig) http.Handler {
 			r.Put("/{tenantId}/config", configH.UpdateConfig)
 			r.Get("/{id}/leads", leadsH.ListLeads)
 			r.Get("/{id}/leads/{leadId}", leadsH.GetLead)
+			r.Patch("/{id}/leads/{leadId}/status", leadsH.UpdateLeadStatus)
 			r.Get("/{id}/analytics", analyticsH.GetStats)
 			r.Get("/{id}/stats", tenantsH.GetStats)
 		})

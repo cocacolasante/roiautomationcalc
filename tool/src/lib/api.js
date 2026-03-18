@@ -1,13 +1,16 @@
-const API_BASE = import.meta.env.VITE_API_BASE || '/api';
+function getBase(apiBase) {
+  if (apiBase) return `${apiBase}/api`;
+  return import.meta.env.VITE_API_BASE || '/api';
+}
 
-export async function fetchConfig(tenantId) {
-  const res = await fetch(`${API_BASE}/v1/config/${tenantId}`);
+export async function fetchConfig(tenantId, apiBase) {
+  const res = await fetch(`${getBase(apiBase)}/v1/config/${tenantId}`);
   if (!res.ok) throw new Error('Failed to fetch config');
   return res.json();
 }
 
-export async function submitAudit(data, tenantId) {
-  const res = await fetch(`${API_BASE}/v1/audit/${tenantId}`, {
+export async function submitAudit(data, tenantId, apiBase) {
+  const res = await fetch(`${getBase(apiBase)}/v1/audit/${tenantId}`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(data),
@@ -16,9 +19,9 @@ export async function submitAudit(data, tenantId) {
   return res.json();
 }
 
-export async function trackEvent(event) {
+export async function trackEvent(event, apiBase) {
   try {
-    await fetch(`${API_BASE}/v1/analytics`, {
+    await fetch(`${getBase(apiBase)}/v1/analytics`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(event),

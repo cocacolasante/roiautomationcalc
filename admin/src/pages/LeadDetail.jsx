@@ -20,7 +20,7 @@ export default function LeadDetail() {
   if (!lead) return <div className="p-4 text-red-500">Lead not found.</div>;
 
   const { audit } = lead;
-  const roi = audit?.roiCalculation;
+  const roi = audit?.roiSummary;
 
   return (
     <div className="max-w-3xl">
@@ -56,8 +56,8 @@ export default function LeadDetail() {
           </div>
           {roi && (
             <div className="mt-3 text-sm">
-              <div className="text-green-600 font-bold text-lg">${Math.round(roi.annualValue || 0).toLocaleString()}/yr</div>
-              <div className="text-gray-400">{Math.round(roi.hoursPerWeek || 0)} hrs/week recoverable</div>
+              <div className="text-green-600 font-bold text-lg">${Math.round(roi.recoverableCostPerYear || roi.annualValue || 0).toLocaleString()}/yr</div>
+              <div className="text-gray-400">{Math.round(roi.totalHoursPerWeek || roi.hoursPerWeek || 0)} hrs/week recoverable</div>
             </div>
           )}
           <div className="mt-3">

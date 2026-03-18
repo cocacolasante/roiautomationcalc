@@ -1,20 +1,12 @@
 import { useState } from 'react';
 
-const TENANT_ID = localStorage.getItem('blueprint_tenant_id') || 'default';
-
 export default function EmbedCode() {
+  const tenantId = localStorage.getItem('blueprint_tenant_id') || '';
   const [host, setHost] = useState(window.location.origin.replace(':5174', ':8080'));
   const [copied, setCopied] = useState(false);
 
   const snippet = `<!-- Blueprint ROI Tool -->
-<div id="blueprint-roi"></div>
-<script>
-  window.BlueprintROIConfig = {
-    tenantId: "${TENANT_ID}",
-    apiBase: "${host}"
-  };
-</script>
-<script src="${host}/embed/blueprint-roi.js" defer></script>`;
+<script src="${host}/embed/blueprint-roi.js" data-tenant-id="${tenantId}" defer></script>`;
 
   const copy = () => {
     navigator.clipboard.writeText(snippet).then(() => {

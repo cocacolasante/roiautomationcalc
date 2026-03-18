@@ -2,6 +2,7 @@ import ProgressBar from './ui/ProgressBar';
 import LiveROICounter from './ui/LiveROICounter';
 import WelcomeStep from './steps/WelcomeStep';
 import BusinessProfileStep from './steps/BusinessProfileStep';
+import AutomationSelectionStep from './steps/AutomationSelectionStep';
 import WorkflowStep from './steps/WorkflowStep';
 import ContactStep from './steps/ContactStep';
 import ProcessingStep from './steps/ProcessingStep';
@@ -21,6 +22,7 @@ export default function AuditWizard({ config, step, answers, liveROI, onAnswer, 
   const steps = [
     { component: WelcomeStep, key: 'welcome' },
     { component: BusinessProfileStep, key: 'profile' },
+    { component: AutomationSelectionStep, key: 'automation' },
     ...categoryGroups.map((cat) => ({
       component: WorkflowStep,
       key: cat.category,

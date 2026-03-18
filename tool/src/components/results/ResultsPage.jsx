@@ -4,11 +4,15 @@ import FindingsAccordion from './FindingsAccordion';
 import RecommendationCard from './RecommendationCard';
 import CTASection from './CTASection';
 
-export default function ResultsPage({ audit, config }) {
+export default function ResultsPage({ audit, config, liveROI }) {
   if (!audit) return null;
 
-  // Go API serializes ROICalculation as `roiSummary`
-  const roi = audit.roiSummary || audit.roiCalculation;
+  // Go API serializes ROICalculation as `roiSummary`.
+  // If the server returned an empty calculation (all zeros — happens when no DB questions are configured),
+  // fall back to the client-side liveROI calculated from automation area selections.
+  const serverRoi = audit.roiSummary || audit.roiCalculation;
+  const hasServerRoi = (serverRoi?.recoverableCostPerYear ?? serverRoi?.annualValue ?? 0) > 0;
+  const roi = hasServerRoi ? serverRoi : liveROI;
   const { findings, recommendations, executiveSummary } = audit;
 
   return (
@@ -44,7 +48,7 @@ export default function ResultsPage({ audit, config }) {
       )}
 
       <div style={{ padding: '0 1.25rem 1.5rem' }}>
-        <CTASection config={config} roi={roiCalculation} />
+        <CTASection config={config} roi={roi} />
       </div>
 
       <div style={{ padding: '1rem 1.25rem', textAlign: 'center', fontSize: '0.8rem', color: '#bbb', borderTop: '1px solid #f0f0f0' }}>

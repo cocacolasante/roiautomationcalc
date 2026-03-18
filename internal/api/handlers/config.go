@@ -26,6 +26,9 @@ func NewConfigHandler(tenantSvc *tenant.Service, db *pgxpool.Pool, log *zap.Logg
 
 func (h *ConfigHandler) GetConfig(w http.ResponseWriter, r *http.Request) {
 	tenantID := chi.URLParam(r, "tenantId")
+	if tenantID == "" {
+		tenantID = chi.URLParam(r, "id")
+	}
 	ctx := r.Context()
 
 	var t *tenant.Tenant
@@ -73,7 +76,11 @@ func (h *ConfigHandler) GetConfig(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *ConfigHandler) UpdateConfig(w http.ResponseWriter, r *http.Request) {
-	id, err := uuid.Parse(chi.URLParam(r, "tenantId"))
+	idStr := chi.URLParam(r, "id")
+	if idStr == "" {
+		idStr = chi.URLParam(r, "tenantId")
+	}
+	id, err := uuid.Parse(idStr)
 	if err != nil {
 		http.Error(w, `{"error":"invalid id"}`, http.StatusBadRequest)
 		return

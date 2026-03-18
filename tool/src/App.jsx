@@ -14,7 +14,7 @@ function LoadingScreen() {
   );
 }
 
-export default function App({ tenantId: propTenantId, embedded = false }) {
+export default function App({ tenantId: propTenantId, apiBase, embedded = false }) {
   const [step, setStep] = useState(0);
   const [answers, setAnswers] = useState({});
   const [config, setConfig] = useState(null);
@@ -25,11 +25,11 @@ export default function App({ tenantId: propTenantId, embedded = false }) {
 
   useEffect(() => {
     const tid = propTenantId || getTenantIdFromEmbed();
-    fetchConfig(tid)
+    fetchConfig(tid, apiBase)
       .then((cfg) => { setConfig(cfg); applyBranding(cfg); })
       .catch((e) => setError(e.message))
       .finally(() => setLoading(false));
-  }, [propTenantId]);
+  }, [propTenantId, apiBase]);
 
   useEffect(() => {
     if (config && Object.keys(answers).length > 0) {
@@ -41,7 +41,7 @@ export default function App({ tenantId: propTenantId, embedded = false }) {
   if (error) return <div style={{ padding: '2rem', color: 'red' }}>Error: {error}</div>;
   if (!config) return <LoadingScreen />;
 
-  if (audit) return <ResultsPage audit={audit} config={config} />;
+  if (audit) return <ResultsPage audit={audit} config={config} liveROI={liveROI} />;
 
   return (
     <div style={{ '--primary': config.primaryColor || '#6C63FF', '--accent': config.accentColor || '#F18F01' }}>
@@ -54,7 +54,7 @@ export default function App({ tenantId: propTenantId, embedded = false }) {
         onNext={() => setStep((s) => s + 1)}
         onBack={() => setStep((s) => s - 1)}
         onComplete={async (contactInfo) => {
-          const result = await submitAudit({ ...answers, ...contactInfo }, config.tenantId);
+          const result = await submitAudit({ ...answers, ...contactInfo }, config.tenantId, apiBase);
           setAudit(result);
         }}
       />

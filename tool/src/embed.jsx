@@ -9,6 +9,16 @@ import './index.css';
   if (!script) return;
 
   const tenantId = script.getAttribute('data-tenant-id');
+
+  // Derive the ROI server base URL from where this script was loaded
+  const apiBase = script.src.replace(/\/embed\/blueprint-roi\.js.*$/, '');
+
+  // Inject the companion stylesheet
+  const link = document.createElement('link');
+  link.rel = 'stylesheet';
+  link.href = apiBase + '/embed/blueprint-roi.css';
+  document.head.appendChild(link);
+
   const containerId = 'blueprint-roi-' + tenantId;
   let containerEl = document.getElementById(containerId);
 
@@ -18,5 +28,5 @@ import './index.css';
     script.after(containerEl);
   }
 
-  createRoot(containerEl).render(<App tenantId={tenantId} embedded={true} />);
+  createRoot(containerEl).render(<App tenantId={tenantId} apiBase={apiBase} embedded={true} />);
 })();
