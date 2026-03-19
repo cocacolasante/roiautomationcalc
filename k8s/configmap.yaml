@@ -1,0 +1,13 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: blueprint-roi-config
+  namespace: blueprint-roi
+data:
+  PORT: "8093"
+  ENV: "production"
+  SMTP_HOST: "smtp.gmail.com"
+  SMTP_PORT: "587"
+  EMAIL_FROM: "hello@blueprintautomation.tech"
+  PORTALS_URL: "https://portal.blueprintautomation.tech"
+  BLUEPRINT_COMMAND_API_URL: "http://portals-api.portals.svc.cluster.local:8094"

@@ -16,6 +16,7 @@ import (
 	"github.com/blueprintautomation/blueprint-roi/internal/analytics"
 	"github.com/blueprintautomation/blueprint-roi/internal/api"
 	auditpkg "github.com/blueprintautomation/blueprint-roi/internal/audit"
+	"github.com/blueprintautomation/blueprint-roi/internal/billing"
 	"github.com/blueprintautomation/blueprint-roi/internal/config"
 	"github.com/blueprintautomation/blueprint-roi/internal/db"
 	"github.com/blueprintautomation/blueprint-roi/internal/tenant"
@@ -57,16 +58,19 @@ func main() {
 	scorer := auditpkg.NewScorer()
 	engine := auditpkg.NewEngine(pool, calculator, recommender, scorer, analyzer, asynqClient, log)
 
+	billingClient := billing.NewTenantLimitClient(cfg.PortalsURL, cfg.BPAInternalKey)
+
 	tenantSvc := tenant.NewService(pool)
 	tracker := analytics.NewTracker(pool, log)
 
 	router := api.NewRouter(&api.RouterConfig{
-		AdminKey:  cfg.AdminKey,
-		Engine:    engine,
-		TenantSvc: tenantSvc,
-		DB:        pool,
-		Tracker:   tracker,
-		Log:       log,
+		AdminKey:      cfg.AdminKey,
+		Engine:        engine,
+		TenantSvc:     tenantSvc,
+		DB:            pool,
+		Tracker:       tracker,
+		Log:           log,
+		BillingClient: billingClient,
 	})
 
 	srv := &http.Server{

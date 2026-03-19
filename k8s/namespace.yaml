@@ -1,0 +1,7 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: blueprint-roi
+  labels:
+    app.kubernetes.io/managed-by: bpa
+    app.kubernetes.io/component: blueprint-roi

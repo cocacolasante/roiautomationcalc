@@ -1,0 +1,34 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: blueprint-roi-worker
+  namespace: blueprint-roi
+  labels:
+    app: blueprint-roi-worker
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: blueprint-roi-worker
+  template:
+    metadata:
+      labels:
+        app: blueprint-roi-worker
+    spec:
+      imagePullSecrets:
+      - name: ghcr-secret
+      containers:
+      - name: blueprint-roi-worker
+        image: ghcr.io/cocacolasante/blueprint-roi-worker:latest
+        envFrom:
+        - configMapRef:
+            name: blueprint-roi-config
+        - secretRef:
+            name: blueprint-roi-secrets
+        resources:
+          requests:
+            memory: "128Mi"
+            cpu: "100m"
+          limits:
+            memory: "256Mi"
+            cpu: "300m"

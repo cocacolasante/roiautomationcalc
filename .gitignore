@@ -5,3 +5,10 @@ node_modules/
 __pycache__/
 *.pyc
 .DS_Store
+prompt.md
+prompt2server.md
+prompt3db.md
+promptdbfix.md
+
+
+k8s/secret.yaml

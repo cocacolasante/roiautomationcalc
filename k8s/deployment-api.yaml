@@ -1,0 +1,46 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: blueprint-roi-api
+  namespace: blueprint-roi
+  labels:
+    app: blueprint-roi-api
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: blueprint-roi-api
+  template:
+    metadata:
+      labels:
+        app: blueprint-roi-api
+    spec:
+      imagePullSecrets:
+      - name: ghcr-secret
+      containers:
+      - name: blueprint-roi-api
+        image: ghcr.io/cocacolasante/blueprint-roi-api:latest
+        ports:
+        - containerPort: 8093
+        envFrom:
+        - configMapRef:
+            name: blueprint-roi-config
+        - secretRef:
+            name: blueprint-roi-secrets
+        resources:
+          requests:
+            memory: "128Mi"
+            cpu: "100m"
+          limits:
+            memory: "512Mi"
+            cpu: "500m"
+        readinessProbe:
+          tcpSocket:
+            port: 8093
+          initialDelaySeconds: 10
+          periodSeconds: 10
+        livenessProbe:
+          tcpSocket:
+            port: 8093
+          initialDelaySeconds: 20
+          periodSeconds: 30

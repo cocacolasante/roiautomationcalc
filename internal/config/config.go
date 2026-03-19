@@ -50,6 +50,10 @@ type Config struct {
 	DefaultAutomationSavingPct float64
 
 	HighValueROIThreshold float64
+
+	// Blueprint Command billing
+	PortalsURL     string
+	BPAInternalKey string
 }
 
 func Load() (*Config, error) {
@@ -97,6 +101,9 @@ func Load() (*Config, error) {
 		DefaultAutomationSavingPct: getEnvFloat("DEFAULT_AUTOMATION_SAVING_PCT", 0.75),
 
 		HighValueROIThreshold: getEnvFloat("HIGH_VALUE_ROI_THRESHOLD", 50000),
+
+		PortalsURL:     getEnv("PORTALS_URL", ""),
+		BPAInternalKey: getEnv("BPA_INTERNAL_KEY", ""),
 	}
 
 	if err := cfg.validate(); err != nil {

@@ -65,11 +65,13 @@ func (s *Service) Create(ctx context.Context, req *CreateTenantRequest) (*Tenant
 			automation_saving_pct, industry_hourly_rates, require_contact,
 			cta_send_report, send_notifications, notify_email, notify_discord,
 			event_webhook_url, created_at, updated_at,
-			partner_id, managed_by, client_id
+			partner_id, managed_by, client_id,
+			portals_instance_id
 		) VALUES (
 			$1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14,
 			$15, $16, $17, $18, $19, $20, $21, $22, $23, $24,
-			$25, $26, $27
+			$25, $26, $27,
+			$28
 		) RETURNING id`,
 		apiKey, slug, req.Name, coalesce(req.CompanyName, req.Name),
 		primaryColor, accentColor, toolTitle,
@@ -80,6 +82,7 @@ func (s *Service) Create(ctx context.Context, req *CreateTenantRequest) (*Tenant
 		req.NotifyEmail, req.NotifyDiscord, req.EventWebhookURL,
 		time.Now(), time.Now(),
 		req.PartnerID, managedBy, req.ClientID,
+		req.PortalsInstanceID,
 	).Scan(&id)
 	if err != nil {
 		return nil, fmt.Errorf("insert tenant: %w", err)
@@ -186,6 +189,13 @@ func (s *Service) UpdateConfig(ctx context.Context, id uuid.UUID, req *UpdateCon
 		return nil, fmt.Errorf("update config: %w", err)
 	}
 	return s.GetByID(ctx, id)
+}
+
+// GetPortalsInstanceID returns the portals_instance_id for a tenant.
+func (s *Service) GetPortalsInstanceID(ctx context.Context, id uuid.UUID) (string, error) {
+	var v string
+	err := s.db.QueryRow(ctx, `SELECT COALESCE(portals_instance_id,'') FROM tenants WHERE id=$1`, id).Scan(&v)
+	return v, err
 }
 
 func (s *Service) GetBySlug(ctx context.Context, slug string) (*Tenant, error) {

@@ -14,16 +14,18 @@ import (
 	auditpkg "github.com/blueprintautomation/blueprint-roi/internal/audit"
 	"github.com/blueprintautomation/blueprint-roi/internal/api/handlers"
 	"github.com/blueprintautomation/blueprint-roi/internal/api/middleware"
+	"github.com/blueprintautomation/blueprint-roi/internal/billing"
 	"github.com/blueprintautomation/blueprint-roi/internal/tenant"
 )
 
 type RouterConfig struct {
-	AdminKey  string
-	Engine    *auditpkg.Engine
-	TenantSvc *tenant.Service
-	DB        *pgxpool.Pool
-	Tracker   *analytics.Tracker
-	Log       *zap.Logger
+	AdminKey      string
+	Engine        *auditpkg.Engine
+	TenantSvc     *tenant.Service
+	DB            *pgxpool.Pool
+	Tracker       *analytics.Tracker
+	Log           *zap.Logger
+	BillingClient *billing.TenantLimitClient
 }
 
 func NewRouter(cfg *RouterConfig) http.Handler {
@@ -43,7 +45,7 @@ func NewRouter(cfg *RouterConfig) http.Handler {
 	configH := handlers.NewConfigHandler(cfg.TenantSvc, cfg.DB, cfg.Log)
 	auditH := handlers.NewAuditHandler(cfg.Engine, cfg.TenantSvc, configH, cfg.DB, cfg.Log)
 	leadsH := handlers.NewLeadsHandler(cfg.DB, cfg.Log)
-	tenantsH := handlers.NewTenantsHandler(cfg.TenantSvc, cfg.Log).WithDB(cfg.DB)
+	tenantsH := handlers.NewTenantsHandler(cfg.TenantSvc, cfg.Log, cfg.BillingClient).WithDB(cfg.DB)
 	analyticsH := handlers.NewAnalyticsHandler(cfg.Tracker, cfg.Log)
 
 	r.Get("/api/health", handlers.Health)

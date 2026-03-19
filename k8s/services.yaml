@@ -1,0 +1,12 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: blueprint-roi-api
+  namespace: blueprint-roi
+spec:
+  selector:
+    app: blueprint-roi-api
+  ports:
+  - name: http
+    port: 8093
+    targetPort: 8093

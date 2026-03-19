@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -10,6 +11,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	"go.uber.org/zap"
 
+	"github.com/blueprintautomation/blueprint-roi/internal/billing"
 	"github.com/blueprintautomation/blueprint-roi/internal/tenant"
 )
 
@@ -17,10 +19,11 @@ type TenantsHandler struct {
 	tenantSvc *tenant.Service
 	log       *zap.Logger
 	db        *pgxpool.Pool
+	billing   *billing.TenantLimitClient
 }
 
-func NewTenantsHandler(tenantSvc *tenant.Service, log *zap.Logger) *TenantsHandler {
-	return &TenantsHandler{tenantSvc: tenantSvc, log: log}
+func NewTenantsHandler(tenantSvc *tenant.Service, log *zap.Logger, billingClient *billing.TenantLimitClient) *TenantsHandler {
+	return &TenantsHandler{tenantSvc: tenantSvc, log: log, billing: billingClient}
 }
 
 // WithDB sets the DB pool on the handler (used for stats queries).
@@ -35,12 +38,21 @@ func (h *TenantsHandler) Create(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, `{"error":"invalid request"}`, http.StatusBadRequest)
 		return
 	}
+
+	if !h.billing.CheckTenantAllowed(r.Context(), req.PortalsInstanceID) {
+		http.Error(w, `{"error":"tenant limit reached"}`, http.StatusPaymentRequired)
+		return
+	}
+
 	t, err := h.tenantSvc.Create(r.Context(), &req)
 	if err != nil {
 		h.log.Error("Failed to create tenant", zap.Error(err))
 		http.Error(w, `{"error":"failed to create tenant"}`, http.StatusInternalServerError)
 		return
 	}
+
+	go h.billing.IncrementTenantCount(context.Background(), req.PortalsInstanceID)
+
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
 	json.NewEncoder(w).Encode(t)
