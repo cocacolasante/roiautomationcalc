@@ -61,6 +61,7 @@ func main() {
 	billingClient := billing.NewTenantLimitClient(cfg.PortalsURL, cfg.BPAInternalKey)
 
 	tenantSvc := tenant.NewService(pool)
+	instanceSvc := tenant.NewInstanceService(pool)
 	tracker := analytics.NewTracker(pool, log)
 
 	router := api.NewRouter(&api.RouterConfig{
@@ -71,6 +72,7 @@ func main() {
 		Tracker:       tracker,
 		Log:           log,
 		BillingClient: billingClient,
+		InstanceSvc:   instanceSvc,
 	})
 
 	srv := &http.Server{

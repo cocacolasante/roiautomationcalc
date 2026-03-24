@@ -6,7 +6,7 @@ metadata:
 data:
   PORT: "8093"
   ENV: "production"
-  SMTP_HOST: "smtp.gmail.com"
+  SMTP_HOST: "smtp-relay.brevo.com"
   SMTP_PORT: "587"
   EMAIL_FROM: "hello@blueprintautomation.tech"
   PORTALS_URL: "https://portal.blueprintautomation.tech"

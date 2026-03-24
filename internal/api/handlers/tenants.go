@@ -16,10 +16,11 @@ import (
 )
 
 type TenantsHandler struct {
-	tenantSvc *tenant.Service
-	log       *zap.Logger
-	db        *pgxpool.Pool
-	billing   *billing.TenantLimitClient
+	tenantSvc   *tenant.Service
+	log         *zap.Logger
+	db          *pgxpool.Pool
+	billing     *billing.TenantLimitClient
+	instanceSvc *tenant.InstanceService
 }
 
 func NewTenantsHandler(tenantSvc *tenant.Service, log *zap.Logger, billingClient *billing.TenantLimitClient) *TenantsHandler {
@@ -29,6 +30,12 @@ func NewTenantsHandler(tenantSvc *tenant.Service, log *zap.Logger, billingClient
 // WithDB sets the DB pool on the handler (used for stats queries).
 func (h *TenantsHandler) WithDB(db *pgxpool.Pool) *TenantsHandler {
 	h.db = db
+	return h
+}
+
+// WithInstanceService attaches the InstanceService to the handler.
+func (h *TenantsHandler) WithInstanceService(instanceSvc *tenant.InstanceService) *TenantsHandler {
+	h.instanceSvc = instanceSvc
 	return h
 }
 
@@ -42,6 +49,40 @@ func (h *TenantsHandler) Create(w http.ResponseWriter, r *http.Request) {
 	if !h.billing.CheckTenantAllowed(r.Context(), req.PortalsInstanceID) {
 		http.Error(w, `{"error":"tenant limit reached"}`, http.StatusPaymentRequired)
 		return
+	}
+
+	if h.instanceSvc != nil {
+		var inst *tenant.ProductInstance
+		var instErr error
+		if req.ProductInstanceID != "" {
+			inst, instErr = h.instanceSvc.GetByID(r.Context(), req.ProductInstanceID)
+			if instErr != nil {
+				http.Error(w, `{"error":"invalid product_instance_id"}`, http.StatusBadRequest)
+				return
+			}
+		} else {
+			clientID := ""
+			if req.ClientID != nil {
+				clientID = *req.ClientID
+			}
+			inst, instErr = h.instanceSvc.EnsureDefault(r.Context(), clientID, req.PortalsInstanceID)
+			if instErr != nil {
+				http.Error(w, `{"error":"failed to resolve product instance"}`, http.StatusInternalServerError)
+				return
+			}
+		}
+		if inst.TenantCount >= tenant.MaxTenantsPerInstance {
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusUnprocessableEntity)
+			json.NewEncoder(w).Encode(map[string]interface{}{
+				"error":         "tenant_limit_reached",
+				"message":       "This instance has reached the maximum of 15 tenants. Provision a second instance to add more.",
+				"current_count": inst.TenantCount,
+				"max_allowed":   tenant.MaxTenantsPerInstance,
+			})
+			return
+		}
+		req.ProductInstanceID = inst.ID
 	}
 
 	t, err := h.tenantSvc.Create(r.Context(), &req)
@@ -83,7 +124,55 @@ func (h *TenantsHandler) List(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(map[string]interface{}{"tenants": tenants})
 }
 
-// GetStats returns aggregated metrics for a tenant (Blueprint Command reseller endpoint).
+// Delete handles DELETE /api/admin/tenants/{id}.
+func (h *TenantsHandler) Delete(w http.ResponseWriter, r *http.Request) {
+	id, err := uuid.Parse(chi.URLParam(r, "id"))
+	if err != nil {
+		http.Error(w, `{"error":"invalid id"}`, http.StatusBadRequest)
+		return
+	}
+
+	instanceID, _ := h.tenantSvc.GetPortalsInstanceID(r.Context(), id)
+
+	if err := h.tenantSvc.Delete(r.Context(), id); err != nil {
+		h.log.Error("delete tenant", zap.Error(err))
+		http.Error(w, `{"error":"failed to delete tenant"}`, http.StatusInternalServerError)
+		return
+	}
+
+	go h.billing.DecrementTenantCount(context.Background(), instanceID)
+
+	w.WriteHeader(http.StatusNoContent)
+}
+
+func (h *TenantsHandler) Suspend(w http.ResponseWriter, r *http.Request) {
+	id, err := uuid.Parse(chi.URLParam(r, "id"))
+	if err != nil {
+		http.Error(w, `{"error":"invalid id"}`, http.StatusBadRequest)
+		return
+	}
+	if err := h.tenantSvc.SetActive(r.Context(), id, false); err != nil {
+		h.log.Error("suspend tenant", zap.Error(err))
+		http.Error(w, `{"error":"failed to suspend tenant"}`, http.StatusInternalServerError)
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
+}
+
+func (h *TenantsHandler) Unsuspend(w http.ResponseWriter, r *http.Request) {
+	id, err := uuid.Parse(chi.URLParam(r, "id"))
+	if err != nil {
+		http.Error(w, `{"error":"invalid id"}`, http.StatusBadRequest)
+		return
+	}
+	if err := h.tenantSvc.SetActive(r.Context(), id, true); err != nil {
+		h.log.Error("unsuspend tenant", zap.Error(err))
+		http.Error(w, `{"error":"failed to unsuspend tenant"}`, http.StatusInternalServerError)
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
+}
+
 func (h *TenantsHandler) GetStats(w http.ResponseWriter, r *http.Request) {
 	id, err := uuid.Parse(chi.URLParam(r, "id"))
 	if err != nil {

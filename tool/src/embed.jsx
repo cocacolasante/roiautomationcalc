@@ -4,8 +4,7 @@ import App from './App';
 import './index.css';
 
 (function () {
-  const scripts = document.querySelectorAll('script[data-tenant-id]');
-  const script = scripts[scripts.length - 1];
+  const script = document.querySelector('script[src*="blueprint-roi.js"][data-tenant-id]');
   if (!script) return;
 
   const tenantId = script.getAttribute('data-tenant-id');

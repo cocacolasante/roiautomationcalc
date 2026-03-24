@@ -5,6 +5,13 @@ RUN npm install
 COPY tool/ ./
 RUN npm run build:embed
 
+FROM node:20-alpine AS admin-builder
+WORKDIR /admin
+COPY admin/package*.json ./
+RUN npm install
+COPY admin/ ./
+RUN npm run build
+
 FROM golang:1.22-alpine AS builder
 WORKDIR /app
 RUN apk add --no-cache git
@@ -19,5 +26,6 @@ WORKDIR /app
 COPY --from=builder /app/bin/server .
 COPY --from=builder /app/templates ./templates
 COPY --from=embed-builder /tool/dist ./embed
-EXPOSE 8080
+COPY --from=admin-builder /admin/dist ./admin-ui
+EXPOSE 8093
 CMD ["./server"]

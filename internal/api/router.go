@@ -2,6 +2,7 @@ package api
 
 import (
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/go-chi/chi/v5"
@@ -26,6 +27,7 @@ type RouterConfig struct {
 	Tracker       *analytics.Tracker
 	Log           *zap.Logger
 	BillingClient *billing.TenantLimitClient
+	InstanceSvc   *tenant.InstanceService
 }
 
 func NewRouter(cfg *RouterConfig) http.Handler {
@@ -47,11 +49,36 @@ func NewRouter(cfg *RouterConfig) http.Handler {
 	leadsH := handlers.NewLeadsHandler(cfg.DB, cfg.Log)
 	tenantsH := handlers.NewTenantsHandler(cfg.TenantSvc, cfg.Log, cfg.BillingClient).WithDB(cfg.DB)
 	analyticsH := handlers.NewAnalyticsHandler(cfg.Tracker, cfg.Log)
+	healthSvc := handlers.NewHealthService(cfg.InstanceSvc)
 
-	r.Get("/api/health", handlers.Health)
+	if cfg.InstanceSvc != nil {
+		tenantsH = tenantsH.WithInstanceService(cfg.InstanceSvc)
+	}
+
+	instancesH := handlers.NewInstancesHandler(cfg.InstanceSvc)
+
+	r.Get("/api/health", healthSvc.Health)
 
 	embedFS := http.FileServer(http.Dir("./embed"))
 	r.Handle("/embed/*", http.StripPrefix("/embed", embedFS))
+
+	// Admin dashboard SPA — served at /admin/
+	// Any sub-path falls back to index.html so React Router handles routing.
+	adminFS := http.Dir("./admin-ui")
+	r.Get("/admin", func(w http.ResponseWriter, r *http.Request) {
+		http.Redirect(w, r, "/admin/", http.StatusMovedPermanently)
+	})
+	r.Handle("/admin/*", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		path := strings.TrimPrefix(r.URL.Path, "/admin")
+		f, err := adminFS.Open(path)
+		if err != nil {
+			// SPA fallback — let React Router handle the route
+			http.ServeFile(w, r, "./admin-ui/index.html")
+			return
+		}
+		f.Close()
+		http.StripPrefix("/admin", http.FileServer(adminFS)).ServeHTTP(w, r)
+	}))
 
 	r.Route("/api/v1", func(r chi.Router) {
 		r.Use(middleware.RateLimit(60, time.Minute))
@@ -72,6 +99,9 @@ func NewRouter(cfg *RouterConfig) http.Handler {
 			r.Get("/", tenantsH.List)
 			r.Post("/", tenantsH.Create)
 			r.Get("/{id}", tenantsH.Get)
+			r.Delete("/{id}", tenantsH.Delete)
+			r.Post("/{id}/suspend", tenantsH.Suspend)
+			r.Post("/{id}/unsuspend", tenantsH.Unsuspend)
 			r.Get("/{tenantId}/config", configH.GetConfig)
 			r.Put("/{tenantId}/config", configH.UpdateConfig)
 			r.Get("/{id}/leads", leadsH.ListLeads)
@@ -80,6 +110,11 @@ func NewRouter(cfg *RouterConfig) http.Handler {
 			r.Get("/{id}/analytics", analyticsH.GetStats)
 			r.Get("/{id}/stats", tenantsH.GetStats)
 		})
+
+		// Instance management
+		r.Get("/instances", instancesH.List)
+		r.Post("/instances", instancesH.Create)
+		r.Get("/instances/{id}", instancesH.Get)
 	})
 
 	return r

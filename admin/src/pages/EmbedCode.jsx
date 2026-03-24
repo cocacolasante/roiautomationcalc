@@ -6,7 +6,14 @@ export default function EmbedCode() {
   const [copied, setCopied] = useState(false);
 
   const snippet = `<!-- Blueprint ROI Tool -->
-<script src="${host}/embed/blueprint-roi.js" data-tenant-id="${tenantId}" defer></script>`;
+<!-- 1. Place this div where you want the tool to appear -->
+<div id="blueprint-roi-${tenantId}" style="width:100%;min-height:500px;"></div>
+
+<!-- 2. Paste this script tag anywhere after the div (or in <head>) -->
+<script src="${host}/embed/blueprint-roi.js" data-tenant-id="${tenantId}" defer></script>
+
+<!-- The script automatically loads its own stylesheet — no extra CSS needed. -->
+<!-- Optional: size the container to taste via the style attribute above.   -->`;
 
   const copy = () => {
     navigator.clipboard.writeText(snippet).then(() => {

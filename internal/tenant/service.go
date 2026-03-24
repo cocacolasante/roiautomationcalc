@@ -56,6 +56,11 @@ func (s *Service) Create(ctx context.Context, req *CreateTenantRequest) (*Tenant
 		managedBy = "bpa"
 	}
 
+	var productInstanceID *string
+	if req.ProductInstanceID != "" {
+		productInstanceID = &req.ProductInstanceID
+	}
+
 	var id uuid.UUID
 	err = s.db.QueryRow(ctx, `
 		INSERT INTO tenants (
@@ -66,12 +71,12 @@ func (s *Service) Create(ctx context.Context, req *CreateTenantRequest) (*Tenant
 			cta_send_report, send_notifications, notify_email, notify_discord,
 			event_webhook_url, created_at, updated_at,
 			partner_id, managed_by, client_id,
-			portals_instance_id
+			portals_instance_id, product_instance_id
 		) VALUES (
 			$1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14,
 			$15, $16, $17, $18, $19, $20, $21, $22, $23, $24,
 			$25, $26, $27,
-			$28
+			$28, $29
 		) RETURNING id`,
 		apiKey, slug, req.Name, coalesce(req.CompanyName, req.Name),
 		primaryColor, accentColor, toolTitle,
@@ -82,7 +87,7 @@ func (s *Service) Create(ctx context.Context, req *CreateTenantRequest) (*Tenant
 		req.NotifyEmail, req.NotifyDiscord, req.EventWebhookURL,
 		time.Now(), time.Now(),
 		req.PartnerID, managedBy, req.ClientID,
-		req.PortalsInstanceID,
+		req.PortalsInstanceID, productInstanceID,
 	).Scan(&id)
 	if err != nil {
 		return nil, fmt.Errorf("insert tenant: %w", err)
@@ -196,6 +201,18 @@ func (s *Service) GetPortalsInstanceID(ctx context.Context, id uuid.UUID) (strin
 	var v string
 	err := s.db.QueryRow(ctx, `SELECT COALESCE(portals_instance_id,'') FROM tenants WHERE id=$1`, id).Scan(&v)
 	return v, err
+}
+
+// SetActive sets the is_active flag on a tenant.
+func (s *Service) SetActive(ctx context.Context, id uuid.UUID, active bool) error {
+	_, err := s.db.Exec(ctx, "UPDATE tenants SET is_active = $2, updated_at = NOW() WHERE id = $1", id, active)
+	return err
+}
+
+// Delete permanently removes a tenant.
+func (s *Service) Delete(ctx context.Context, id uuid.UUID) error {
+	_, err := s.db.Exec(ctx, `DELETE FROM tenants WHERE id = $1`, id)
+	return err
 }
 
 func (s *Service) GetBySlug(ctx context.Context, slug string) (*Tenant, error) {

@@ -56,6 +56,7 @@ type Tenant struct {
 
 	// Blueprint Command billing
 	PortalsInstanceID string `json:"portalsInstanceId,omitempty" db:"portals_instance_id"`
+	ProductInstanceID string `json:"productInstanceId,omitempty" db:"product_instance_id"`
 }
 
 type UpdateConfigRequest struct {
@@ -107,4 +108,5 @@ type CreateTenantRequest struct {
 	ManagedBy           string             `json:"managed_by,omitempty"`
 	ClientID            *string            `json:"client_id,omitempty"`
 	PortalsInstanceID   string             `json:"portalsInstanceId,omitempty"`
+	ProductInstanceID   string             `json:"productInstanceId,omitempty"`
 }
