@@ -32,6 +32,7 @@ export const listTenants = () => request('/admin/tenants');
 export const createTenant = (data) => request('/admin/tenants', { method: 'POST', body: JSON.stringify(data) });
 export const getTenant = (id) => request(`/admin/tenants/${id}`);
 export const updateTenant = (id, data) => request(`/admin/tenants/${id}`, { method: 'PUT', body: JSON.stringify(data) });
+export const deleteTenant = (id) => request(`/admin/tenants/${id}`, { method: 'DELETE' });
 
 // Leads
 export const listLeads = (tenantId, params = {}) => {

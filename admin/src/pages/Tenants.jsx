@@ -1,6 +1,38 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { listTenants, createTenant } from '../api/client';
+import { listTenants, createTenant, deleteTenant } from '../api/client';
+
+function DeleteConfirmModal({ tenant, onClose, onDeleted }) {
+  const [loading, setLoading] = useState(false);
+  async function handleDelete() {
+    setLoading(true);
+    try {
+      await deleteTenant(tenant.id);
+      onDeleted(tenant.id);
+      onClose();
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  }
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+      <div className="bg-white rounded-xl shadow-xl w-full max-w-sm p-6">
+        <h3 className="text-base font-semibold text-gray-900 mb-2">Delete Tenant</h3>
+        <p className="text-sm text-gray-600 mb-5">
+          Are you sure you want to delete <strong>{tenant.name}</strong>? This cannot be undone.
+        </p>
+        <div className="flex gap-2">
+          <button onClick={onClose} className="flex-1 px-4 py-2 text-sm text-gray-600 bg-gray-100 rounded-lg hover:bg-gray-200">Cancel</button>
+          <button onClick={handleDelete} disabled={loading} className="flex-1 px-4 py-2 text-sm text-white bg-red-600 rounded-lg hover:bg-red-700 disabled:opacity-50">
+            {loading ? 'Deleting...' : 'Delete'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 export default function Tenants() {
   const navigate = useNavigate();
@@ -10,6 +42,7 @@ export default function Tenants() {
   const [form, setForm] = useState({ name: '', slug: '', adminEmail: '' });
   const [showForm, setShowForm] = useState(false);
   const [error, setError] = useState('');
+  const [deleteTarget, setDeleteTarget] = useState(null);
 
   const load = () => {
     listTenants()
@@ -98,12 +131,20 @@ export default function Tenants() {
                     </span>
                   </td>
                   <td className="px-5 py-3 text-right">
-                    <button
-                      onClick={() => { localStorage.setItem('blueprint_tenant_id', t.id); localStorage.setItem('blueprint_tenant_name', t.name); navigate('/config'); }}
-                      className="text-xs text-primary font-semibold hover:underline"
-                    >
-                      Configure
-                    </button>
+                    <div className="flex items-center justify-end gap-3">
+                      <button
+                        onClick={() => { localStorage.setItem('blueprint_tenant_id', t.id); localStorage.setItem('blueprint_tenant_name', t.name); navigate('/config'); }}
+                        className="text-xs text-primary font-semibold hover:underline"
+                      >
+                        Configure
+                      </button>
+                      <button
+                        onClick={() => setDeleteTarget(t)}
+                        className="text-xs text-red-500 hover:text-red-700 font-semibold"
+                      >
+                        Delete
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))}
@@ -111,6 +152,13 @@ export default function Tenants() {
           </table>
         )}
       </div>
+      {deleteTarget && (
+        <DeleteConfirmModal
+          tenant={deleteTarget}
+          onClose={() => setDeleteTarget(null)}
+          onDeleted={(id) => setTenants(prev => prev.filter(t => t.id !== id))}
+        />
+      )}
     </div>
   );
 }
